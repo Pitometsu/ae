@@ -1,0 +1,73 @@
+-- OverloadedStrings is often useful.
+:set -XOverloadedStrings
+
+-- Scoped type variables is often useful so we can specify the types
+-- of variables (for example, in lambda expressions).
+:set -XScopedTypeVariables
+
+-- useful for import from specified package
+:set -XPackageImports
+
+-- Force load dependencies
+
+-- :set -package funnyprint
+
+-- :set -package hoogle
+-- :set -package haskell-docs
+
+-- Import Prelude.  Some projects don't import the Prelude by default, but
+-- we are using types and functions from the Prelude in the following hoogle
+-- function definition, so we need to make sure that Prelude is imported.
+-- import Prelude
+
+-- give us a `hoogle` function to if the hoogle binary is available.
+-- :def hoogle \s -> return $ ":! hoogle --count=15 \"" ++ s ++ "\""
+let escape arg = "'" ++ ((\c -> if c == '\'' then "'\"'\"'" else [c]) =<< arg) ++"'"
+:def! search return . (":!hoogle --count=50 --color " ++) . escape
+:def! doc return . (":!hoogle --count=50 --color --info " ++) . escape
+
+-- Show the types of evaluated expressions
+:set +t
+
+-- And stats
+:set +s
+
+-- Enable multi-line expressions with :{ and :}
+:set +m
+
+-- ghci-ng support
+-- :set +c
+
+-- Make the prompt a little more colorful.
+-- And pretty-printing values
+
+-- :def color (\_ -> return (":set -interactive-print=FunnyPrint.funnyPrint\n:set prompt \"" ++ FunnyPrint.prompt "λ " "%s" " ¬\\nλ > " ++ "\"" ++ "\n:set prompt2 \"" ++ FunnyPrint.prompt2 "λ" "" " | " ++ "\""))
+-- :def nocolor (\_ -> return ":set -interactive-print=print\n:set prompt \"%s> \"\n:set prompt2 \"%s| \"")
+
+-- :color
+
+--
+--
+
+-- New current minimal config:
+
+:set -XPackageImports
+:set +m
+:def hoogle \x -> return $ ":! hoogle \"" ++ x ++ "\""
+:def hoogle-info \x -> return $ ":! hoogle --info \"" ++ x ++ "\""
+
+-- update tags
+:def tags \_ -> return ":! haskdogs -- --ignore-close-implementation --etags"
+
+-- update docs
+:def docs \_ -> return ":! stack exec hoogle generate && stack hoogle --rebuild"
+
+:def doc \input -> return $ ":! haskell-docs " ++ input
+
+:set -ddump-deriv
+
+:set -XOverloadedStrings
+:set -XOverloadedLists
+:set -XScopedTypeVariables
+:set -XPackageImports
+:set -XStandaloneDeriving
