@@ -1,47 +1,69 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Main where
+module Main (main) where
 
 import Prelude hiding (head, putStrLn, readFile, words)
 import Control.Monad
-import Control.Applicative
 import Data.Functor ((<&>))
-import Data.Foldable (fold)
-import Data.List.NonEmpty (head, NonEmpty, nonEmpty, toList)
-import Data.Text (append, cons, pack, unpack, strip, words, Text, isInfixOf)
+import Data.Function (on)
+import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
+import Data.Text (unpack, strip, words, Text, isInfixOf)
 import Data.Text.IO
-import Data.Maybe (fromMaybe)
-import Text.HTML.TagSoup (maybeTagText, parseTags, Tag(TagOpen))
+import Data.Maybe (listToMaybe)
+import Text.HTML.TagSoup (parseTags, Tag(TagOpen))
 import Text.HTML.Scalpel
 
 data Target = Target
   { tagOf, textOf :: Text
   , classOf :: NonEmpty Text
-  } deriving (Show)
+  } deriving Show
 
+type Score = Int
+type Rule = Scraper Text Score
+
+data Result = Result
+  { contentOf :: Text
+  , scoreOf :: Score }
+
+instance Eq Result where
+  (==) = (==) `on` scoreOf
+
+instance Ord Result where
+  compare = compare `on` scoreOf
+
+here :: Selector
 here = anySelector `atDepth` 0
+
+classAttr :: String
 classAttr = "class"
+
+rules :: Target -> [Rule]
+rules = \case
+  Target { textOf = text', classOf = class' } -> let
+    contains = text here <&> contains' >>= guard >> return 2
+      where contains' = isInfixOf text'
+    sameClass = attr classAttr here <&> sameClass' . words >>= guard >> return 1
+      where sameClass' classes = flip elem classes `all` toList class'
+    in
+      [ contains
+      , sameClass ]
 
 pick :: Text -> Target -> Maybe Text
 pick document target =
   let selector = tagSelector . unpack $ tagOf target in
-  scrapeStringLike document
-    $ chroot selector $ do
-      (tag_ :: Text) <- html here
-      (text_ :: Text) <- text here
-      class_ <- attr classAttr here
-      let class' = words class_
-      guard $ textOf target `isInfixOf` text_
-        || all (flip elem class') (toList $ classOf target)
-      return tag_
+  best $ scrapeStringLike document
+    $ chroots selector $ do
+      tag <- html here
+      let score = scrapeStringLike tag <$> rules target
+      pure $ Result tag $ sum $ sum <$> score
+  where
+    best rule = rule >>= nonEmpty <&> contentOf . maximum
 
-target :: Text -> Maybe Target
-target document =
-  let selector = AnyTag @: [ "id" @= targetID ] in
+from :: Text -> Maybe Target
+from document =
+  let selector = AnyTag @: [ idAttr @= targetID ] in
   join $ scrapeStringLike document
     $ chroot selector $ do
       tag_ <- html here
@@ -53,7 +75,8 @@ target document =
           class' = nonEmpty $ words class_
       return $ liftM3 Target tag' text' class'
     where
-      getTag = fmap head . nonEmpty . parseTags
+      idAttr = "id"
+      getTag = listToMaybe . parseTags
       tagName = \case
         TagOpen name _ -> Just name
         _ -> Nothing
@@ -63,13 +86,12 @@ main :: IO ()
 main = do
   originFile <- readFile originPath
   sampleFile <- readFile samplePath
-  sequenceA $ print . show <$> do
-    target' <- target originFile
-    pick sampleFile target'
-  return ()
+  sequence_ $ print . show <$> do
+    target <- from originFile
+    pick sampleFile target
   where
       originPath = "data/sample-0-origin.html"
       samplePath = "data/sample-1-evil-gemini.html"
-      samplePath' = "data/sample-2-container-and-clone.html"
-      samplePath'' = "data/sample-3-the-escape.html"
-      samplePath''' = "data/sample-4-the-mash.html"
+      -- samplePath' = "data/sample-2-container-and-clone.html"
+      -- samplePath'' = "data/sample-3-the-escape.html"
+      -- samplePath''' = "data/sample-4-the-mash.html"
