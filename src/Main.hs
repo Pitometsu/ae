@@ -1,19 +1,28 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
 
-import Prelude hiding (head, putStrLn, readFile, words)
-import Control.Monad
-import Data.Functor ((<&>))
+import Control.Monad (guard, join, liftM3)
 import Data.Function (on)
+import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
-import Data.Text (unpack, strip, words, Text, isInfixOf)
-import Data.Text.IO
 import Data.Maybe (listToMaybe)
-import Text.HTML.TagSoup (parseTags, Tag(TagOpen))
+import Data.Text (Text, isInfixOf, strip, unpack, words)
+import Data.Text.IO (readFile)
+import Options.Generic
+import Prelude hiding (head, id, putStrLn, readFile, words)
 import Text.HTML.Scalpel
+import Text.HTML.TagSoup (Tag(TagOpen), parseTags)
+
+data Args = Args
+  { id :: String
+  , origin, sample :: FilePath
+  } deriving Generic
+
+instance ParseRecord Args
 
 data Target = Target
   { tagOf, textOf :: Text
@@ -61,9 +70,9 @@ pick document target =
   where
     best rule = rule >>= nonEmpty <&> contentOf . maximum
 
-from :: Text -> Maybe Target
-from document =
-  let selector = AnyTag @: [ idAttr @= targetID ] in
+from :: Text -> String -> Maybe Target
+from document elemID =
+  let selector = AnyTag @: [ idAttr @= elemID ] in
   join $ scrapeStringLike document
     $ chroot selector $ do
       tag_ <- html here
@@ -80,18 +89,19 @@ from document =
       tagName = \case
         TagOpen name _ -> Just name
         _ -> Nothing
-      targetID = "make-everything-ok-button"
+      -- targetID = "make-everything-ok-button"
 
 main :: IO ()
 main = do
-  originFile <- readFile originPath
-  sampleFile <- readFile samplePath
+  args <- getRecord "Welcome!\nThis is a a simple HTML crawler."
+  originFile <- readFile $ origin args
+  sampleFile <- readFile $ sample args
   sequence_ $ print . show <$> do
-    target <- from originFile
+    target <- from originFile $ id args
     pick sampleFile target
-  where
-      originPath = "data/sample-0-origin.html"
-      samplePath = "data/sample-1-evil-gemini.html"
+  -- where
+  --     originPath = "data/sample-0-origin.html"
+  --     samplePath = "data/sample-1-evil-gemini.html"
       -- samplePath' = "data/sample-2-container-and-clone.html"
       -- samplePath'' = "data/sample-3-the-escape.html"
       -- samplePath''' = "data/sample-4-the-mash.html"
