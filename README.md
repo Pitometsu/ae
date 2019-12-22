@@ -40,5 +40,7 @@ cabal new-run ae --\
  --sample "data/sample-1-evil-gemini.html"
 ```
 ```html
-"\"<a class=\\\"btn btn-success\\\" href=\\\"#check-and-ok\\\" title=\\\"Make-Button\\\" rel=\\\"done\\\" onclick=\\\"javascript:window.okDone(); return false;\\\">\\n                              Make everything OK\\n                            </a>\""
+<a class="btn btn-success" href="#check-and-ok" title="Make-Button" rel="done" onclick="javascript:window.okDone(); return false;">
+                              Make everything OK
+                            </a>
 ```

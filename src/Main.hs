@@ -11,7 +11,7 @@ import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, isInfixOf, strip, unpack, words)
-import Data.Text.IO (readFile)
+import Data.Text.IO (putStrLn, readFile)
 import Options.Generic
 import Prelude hiding (head, id, putStrLn, readFile, words)
 import Text.HTML.Scalpel
@@ -96,7 +96,7 @@ main = do
   args <- getRecord "Welcome!\nThis is a a simple HTML crawler."
   originFile <- readFile $ origin args
   sampleFile <- readFile $ sample args
-  sequence_ $ print . show <$> do
+  sequence_ $ putStrLn <$> do
     target <- from originFile $ id args
     pick sampleFile target
   -- where
